@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to Code Studio v2.7</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        code, pre, .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Transparent Checkerboard Pattern */
+        .bg-checker {
+            background-color: #1e293b;
+            background-image: 
+                linear-gradient(45deg, #0f172a 25%, transparent 25%), 
+                linear-gradient(-45deg, #0f172a 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #0f172a 75%), 
+                linear-gradient(-45deg, transparent 75%, #0f172a 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 border border-blue-400/30 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-900/40 shrink-0">
+                    <i class="fa-solid fa-code"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-extrabold tracking-tight flex items-center gap-2 flex-wrap">
+                        <span class="bg-gradient-to-r from-blue-400 via-indigo-300 to-teal-400 bg-clip-text text-transparent">Image to Code Studio</span>
+                        <span class="text-[10px] font-mono font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <i class="fa-solid fa-bolt text-[9px]"></i> PWA App Ready
+                        </span>
+                    </h1>
+                    <p class="text-[11px] sm:text-xs text-slate-400">なめらか曲線SVG・鮮明ドットアート・Base64マルチコンバーター</p>
+                </div>
+            </div>
+
+            <!-- Quick Action: Sample Character Button -->
+            <button onclick="generateSampleMascot()" class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-emerald-900/30 active:scale-95">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                サンプルキャラ読込
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN STUDIO WORKSPACE -->
+    <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 py-5 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- LEFT COLUMN: INPUT & SETTINGS (4 Cols) -->
+        <section class="lg:col-span-4 flex flex-col gap-5 min-w-0">
+            
+            <!-- UPLOAD DROP ZONE CARD -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
+                <h2 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-file-image text-blue-400"></i>
+                    画像入力
+                </h2>
+
+                <!-- Dropzone Area -->
+                <div id="dropZone" onclick="document.getElementById('fileInput').click()" 
+                     class="border-2 border-dashed border-slate-700 hover:border-blue-500 rounded-xl p-5 text-center cursor-pointer bg-slate-950/50 hover:bg-slate-950 transition flex flex-col items-center justify-center gap-2 group relative overflow-hidden">
+                    
+                    <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                    
+                    <div id="uploadPrompt" class="flex flex-col items-center gap-2">
+                        <div class="w-12 h-12 rounded-full bg-slate-800 text-slate-400 group-hover:text-blue-400 group-hover:scale-110 transition flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </div>
+                        <p class="text-xs font-semibold text-slate-300">画像をドラッグ＆ドロップ</p>
+                        <p class="text-[11px] text-slate-500">または タップして参照 (PNG, JPG, WEBP, SVG)</p>
+                    </div>
+
+                    <!-- Image Thumbnail Preview Canvas -->
+                    <div id="previewContainer" class="hidden flex flex-col items-center gap-2 w-full">
+                        <div class="relative max-w-full max-h-48 rounded-lg overflow-hidden border border-slate-700 bg-checker p-2 flex items-center justify-center">
+                            <img id="sourceImgPreview" class="max-h-40 max-w-full object-contain mx-auto" alt="Source Preview">
+                        </div>
+                        <span id="imgInfoText" class="text-[11px] font-mono text-slate-400">0 x 0 px</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SAMPLING & VECTOR CONTROLS -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-4">
+                <h2 class="text-sm font-bold text-slate-200 flex items-center justify-between">
+                    <span class="flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-indigo-400"></i>
+                        変換・トレース設定
+                    </span>
+                    <span id="gridValBadge" class="text-xs font-mono bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800">48 px</span>
+                </h2>
+
+                <!-- Grid / Trace Resolution Slider -->
+                <div>
+                    <div class="flex justify-between text-xs text-slate-400 mb-1.5">
+                        <label for="gridSizeRange" class="font-medium">解析グリッド解像度</label>
+                        <span class="text-[10px] text-slate-500">大きいほど細部まで再現</span>
+                    </div>
+                    <input type="range" id="gridSizeRange" min="20" max="96" value="48" step="2" 
+                           oninput="onSettingsChange()" 
+                           class="w-full accent-indigo-500 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                    <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+                        <span>20px (粗)</span>
+                        <span>48px (標準)</span>
+                        <span>96px (高精細)</span>
+                    </div>
+                </div>
+
+                <!-- Smoothness Level -->
+                <div>
+                    <div class="flex justify-between text-xs text-slate-400 mb-1.5">
+                        <label for="smoothLevelRange" class="font-medium">✨ ベクター曲線スムージング</label>
+                        <span id="smoothValBadge" class="font-mono text-amber-400 font-bold">Lv.2 (なめらか)</span>
+                    </div>
+                    <input type="range" id="smoothLevelRange" min="0" max="3" value="2" step="1" 
+                           oninput="onSettingsChange()" 
+                           class="w-full accent-amber-500 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                    <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+                        <span>0 (直線)</span>
+                        <span>1 (弱)</span>
+                        <span>2 (標準)</span>
+                        <span>3 (超曲線)</span>
+                    </div>
+                </div>
+
+                <!-- Output Scale Slider -->
+                <div>
+                    <div class="flex justify-between text-xs text-slate-400 mb-1.5">
+                        <label for="outputScaleRange" class="font-medium">出力コードの実寸サイズ倍率</label>
+                        <span id="scaleValBadge" class="font-mono text-indigo-300 font-bold">6x</span>
+                    </div>
+                    <input type="range" id="outputScaleRange" min="2" max="12" value="6" step="1" 
+                           oninput="onSettingsChange()" 
+                           class="w-full accent-indigo-500 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                </div>
+
+                <!-- Crisp Quantize -->
+                <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                    <div>
+                        <label for="crispQuantizeCheck" class="text-xs font-medium text-slate-300 cursor-pointer">✨ 色の境界パキッと強調 (減色)</label>
+                        <p class="text-[10px] text-slate-500">滲みや中間色を整理し輪郭を明確化</p>
+                    </div>
+                    <input type="checkbox" id="crispQuantizeCheck" checked onchange="onSettingsChange()" 
+                           class="w-4 h-4 accent-indigo-500 rounded bg-slate-800 border-slate-700 cursor-pointer">
+                </div>
+
+                <!-- Transparency Alpha Threshold -->
+                <div class="pt-2 border-t border-slate-800/80">
+                    <div class="flex justify-between text-xs text-slate-400 mb-1.5">
+                        <label for="alphaThreshold" class="font-medium">透過度のしきい値</label>
+                        <span id="alphaValText" class="font-mono text-slate-300">128</span>
+                    </div>
+                    <input type="range" id="alphaThreshold" min="10" max="250" value="128" step="10" 
+                           oninput="onSettingsChange()" 
+                           class="w-full accent-indigo-500 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                </div>
+            </div>
+
+            <!-- OFFSCREEN WORKING CANVAS -->
+            <canvas id="workCanvas" class="hidden"></canvas>
+        </section>
+
+        <!-- RIGHT COLUMN: OUTPUT TABS & CODE DISPLAY (8 Cols) -->
+        <section class="lg:col-span-8 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden min-w-0">
+            
+            <!-- TAB CONTROLS HEADER -->
+            <div class="flex items-center justify-between border-b border-slate-800 bg-slate-950/60 px-3 sm:px-4 pt-3 overflow-x-auto">
+                <div class="flex gap-1 shrink-0" role="tablist">
+                    <button id="tabBtnVector" onclick="switchTab('vector')" 
+                            class="tab-btn px-3 sm:px-4 py-2.5 rounded-t-xl text-xs font-bold transition flex items-center gap-1.5 border-t border-x border-transparent whitespace-nowrap">
+                        <i class="fa-solid fa-bezier-curve text-amber-400"></i>
+                        1. Smooth Vector SVG
+                    </button>
+                    <button id="tabBtnCss" onclick="switchTab('css')" 
+                            class="tab-btn px-3 sm:px-4 py-2.5 rounded-t-xl text-xs font-bold transition flex items-center gap-1.5 border-t border-x border-transparent whitespace-nowrap">
+                        <i class="fa-solid fa-cubes text-pink-400"></i>
+                        2. Crisp CSS Art
+                    </button>
+                    <button id="tabBtnSvg" onclick="switchTab('svg')" 
+                            class="tab-btn px-3 sm:px-4 py-2.5 rounded-t-xl text-xs font-bold transition flex items-center gap-1.5 border-t border-x border-transparent whitespace-nowrap">
+                        <i class="fa-solid fa-border-all text-emerald-400"></i>
+                        3. Crisp Pixel SVG
+                    </button>
+                    <button id="tabBtnBase64" onclick="switchTab('base64')" 
+                            class="tab-btn px-3 sm:px-4 py-2.5 rounded-t-xl text-xs font-bold transition flex items-center gap-1.5 border-t border-x border-transparent whitespace-nowrap">
+                        <i class="fa-solid fa-link text-blue-400"></i>
+                        4. Base64 (Data URI)
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT CONTAINER -->
+            <div class="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-4 min-w-0">
+
+                <!-- -------------------------------------------------------------
+                     TAB 1: SMOOTH VECTOR SVG
+                     ------------------------------------------------------------- -->
+                <div id="tabContentVector" class="tab-content flex-1 flex flex-col gap-4 min-w-0">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 flex-1 min-w-0">
+                        <div class="md:col-span-5 bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-between min-h-[260px] min-w-0">
+                            <span class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">✨ 曲線ベクター プレビュー</span>
+                            <div class="bg-checker p-4 rounded-xl border border-slate-800 flex items-center justify-center w-full h-52 overflow-hidden">
+                                <div id="vectorLivePreviewContainer" class="w-full h-full flex items-center justify-center"></div>
+                            </div>
+                            <span id="vectorInfoText" class="text-[11px] text-slate-400 font-mono mt-2">ズーム劣化ゼロのベクターパス</span>
+                        </div>
+
+                        <div class="md:col-span-7 flex flex-col min-w-0">
+                            <div class="flex justify-between items-center text-xs text-slate-400 mb-1.5">
+                                <span class="font-bold text-slate-300">なめらか輪郭 SVG &lt;path&gt; コード</span>
+                                <button onclick="copyCode('vectorCodeOutput', 'Smooth Vector SVG')" 
+                                        class="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 shadow">
+                                    <i class="fa-regular fa-copy"></i> コードをコピー
+                                </button>
+                            </div>
+                            <textarea id="vectorCodeOutput" readonly 
+                                      class="w-full flex-1 min-h-[240px] bg-slate-950 text-amber-300 font-mono text-xs p-3 rounded-xl border border-slate-800 focus:outline-none resize-none leading-relaxed"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- -------------------------------------------------------------
+                     TAB 2: CRISP CSS ART
+                     ------------------------------------------------------------- -->
+                <div id="tabContentCss" class="tab-content hidden flex-1 flex flex-col gap-4 min-w-0">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 flex-1 min-w-0">
+                        <div class="md:col-span-5 bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-between min-h-[260px] min-w-0">
+                            <span class="text-xs font-bold text-pink-400 uppercase tracking-wider mb-2">👾 Crisp CSS プレビュー</span>
+                            <div class="bg-checker p-4 rounded-xl border border-slate-800 flex items-center justify-center w-full h-52 overflow-hidden relative">
+                                <div id="cssArtPreviewWrapper" class="flex items-center justify-center">
+                                    <div id="cssArtLiveElement"></div>
+                                </div>
+                            </div>
+                            <span id="cssPixelCountText" class="text-[11px] text-slate-400 font-mono mt-2">描画ピクセル数: 0</span>
+                        </div>
+
+                        <div class="md:col-span-7 flex flex-col min-w-0">
+                            <div class="flex justify-between items-center text-xs text-slate-400 mb-1.5">
+                                <span class="font-bold text-slate-300">&lt;div class="css-art"&gt;&lt;/div&gt; 用 CSS</span>
+                                <button onclick="copyCode('cssCodeOutput', 'CSSアートコード')" 
+                                        class="px-3 py-1 bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 shadow">
+                                    <i class="fa-regular fa-copy"></i> コードをコピー
+                                </button>
+                            </div>
+                            <textarea id="cssCodeOutput" readonly 
+                                      class="w-full flex-1 min-h-[240px] bg-slate-950 text-pink-300 font-mono text-xs p-3 rounded-xl border border-slate-800 focus:outline-none resize-none leading-relaxed"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- -------------------------------------------------------------
+                     TAB 3: CRISP PIXEL SVG
+                     ------------------------------------------------------------- -->
+                <div id="tabContentSvg" class="tab-content hidden flex-1 flex flex-col gap-4 min-w-0">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 flex-1 min-w-0">
+                        <div class="md:col-span-5 bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-between min-h-[260px] min-w-0">
+                            <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">📐 Crisp Pixel SVG</span>
+                            <div class="bg-checker p-4 rounded-xl border border-slate-800 flex items-center justify-center w-full h-52 overflow-hidden">
+                                <div id="svgLivePreviewContainer" class="w-full h-full flex items-center justify-center"></div>
+                            </div>
+                            <span id="svgRectCountText" class="text-[11px] text-slate-400 font-mono mt-2">結合&lt;rect&gt;ブロック数: 0</span>
+                        </div>
+
+                        <div class="md:col-span-7 flex flex-col min-w-0">
+                            <div class="flex justify-between items-center text-xs text-slate-400 mb-1.5">
+                                <span class="font-bold text-slate-300">クッキリ鮮明ドット SVG コード</span>
+                                <button onclick="copyCode('svgCodeOutput', 'Pixel SVGコード')" 
+                                        class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 shadow">
+                                    <i class="fa-regular fa-copy"></i> コードをコピー
+                                </button>
+                            </div>
+                            <textarea id="svgCodeOutput" readonly 
+                                      class="w-full flex-1 min-h-[240px] bg-slate-950 text-emerald-300 font-mono text-xs p-3 rounded-xl border border-slate-800 focus:outline-none resize-none leading-relaxed"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- -------------------------------------------------------------
+                     TAB 4: BASE64 DATA URI (ボタンUI統一＆プレビュー拡大版)
+                     ------------------------------------------------------------- -->
+                <div id="tabContentBase64" class="tab-content hidden flex-1 flex flex-col gap-4 min-w-0">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 flex-1 min-w-0">
+                        <div class="md:col-span-5 bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-between min-h-[260px] min-w-0">
+                            <span class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">🔗 Base64 プレビュー</span>
+                            <div class="bg-checker p-4 rounded-xl border border-slate-800 flex items-center justify-center w-full h-52 overflow-hidden">
+                                <img id="base64LivePreviewImg" class="w-full h-full object-contain max-h-44" alt="Base64 Preview">
+                            </div>
+                            <span id="base64SizeText" class="text-[11px] font-mono font-bold text-blue-400 mt-2">0 KB (0 文字)</span>
+                        </div>
+
+                        <div class="md:col-span-7 flex flex-col gap-3 min-w-0">
+                            <div>
+                                <div class="flex justify-between items-center text-xs text-slate-400 mb-1">
+                                    <span class="font-bold text-slate-300">Data URI 文字列</span>
+                                    <button onclick="copyCode('base64OutputText', 'Base64文字列')" 
+                                            class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 shadow">
+                                        <i class="fa-regular fa-copy"></i> Base64をコピー
+                                    </button>
+                                </div>
+                                <textarea id="base64OutputText" readonly 
+                                          class="w-full h-24 bg-slate-950 text-slate-300 font-mono text-xs p-3 rounded-xl border border-slate-800 focus:outline-none resize-none leading-relaxed"></textarea>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between items-center text-xs text-slate-400 mb-1">
+                                    <span class="font-bold text-slate-300">HTML Favicon タグ</span>
+                                    <button onclick="copyCode('favSnippetText', 'Faviconタグ')" 
+                                            class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 shadow">
+                                        <i class="fa-regular fa-copy"></i> タグをコピー
+                                    </button>
+                                </div>
+                                <input id="favSnippetText" readonly type="text" 
+                                       class="w-full bg-slate-950 text-emerald-400 font-mono text-xs px-3 py-2 rounded-xl border border-slate-800 focus:outline-none">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between items-center text-xs text-slate-400 mb-1">
+                                    <span class="font-bold text-slate-300">HTML &lt;img&gt; タグ</span>
+                                    <button onclick="copyCode('imgSnippetText', 'HTML imgタグ')" 
+                                            class="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 shadow">
+                                        <i class="fa-regular fa-copy"></i> タグをコピー
+                                    </button>
+                                </div>
+                                <input id="imgSnippetText" readonly type="text" 
+                                       class="w-full bg-slate-950 text-purple-400 font-mono text-xs px-3 py-2 rounded-xl border border-slate-800 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- FOOTER TOOLBAR -->
+            <div class="px-4 sm:px-5 py-3 border-t border-slate-800 bg-slate-950/40 flex justify-between items-center text-xs text-slate-500">
+                <span>Single-File PWA Toolkit v2.7</span>
+                <span id="statusMessage" class="text-blue-400 font-medium">準備完了</span>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-blue-600 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-bold flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toastMsg">クリップボードにコピーしました！</span>
+    </div>
+
+    <!-- JAVASCRIPT APP LOGIC -->
+    <script>
+        let activeTab = 'vector';
+        let currentLoadedImage = null;
+
+        window.onload = function() {
+            setupDragAndDrop();
+            switchTab('vector');
+            generateSampleMascot();
+        };
+
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+            });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('border-blue-500', 'bg-slate-900'), false);
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('border-blue-500', 'bg-slate-900'), false);
+            });
+            dropZone.addEventListener('drop', (e) => {
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) processFile(e.dataTransfer.files[0]);
+            });
+        }
+
+        function handleFileSelect(event) {
+            if (event.target.files && event.target.files.length > 0) processFile(event.target.files[0]);
+        }
+
+        function processFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showToast('画像ファイルを選択してください');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    currentLoadedImage = img;
+                    displaySourcePreview(img, file.name);
+                    processImageConversion();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function displaySourcePreview(img, nameStr = 'Sample') {
+            document.getElementById('uploadPrompt').classList.add('hidden');
+            document.getElementById('previewContainer').classList.remove('hidden');
+            document.getElementById('sourceImgPreview').src = img.src;
+            document.getElementById('imgInfoText').innerText = `${nameStr} (${img.width} × ${img.height} px)`;
+        }
+
+        function generateSampleMascot() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 240;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, 200, 240);
+
+            // Head
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#050505';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.ellipse(100, 115, 65, 45, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Hair '6'
+            ctx.fillStyle = '#050505';
+            ctx.beginPath();
+            ctx.arc(96, 56, 7.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(100, 70);
+            ctx.quadraticCurveTo(104, 58, 97, 50);
+            ctx.stroke();
+
+            // Eyes
+            ctx.fillStyle = '#050505';
+            ctx.beginPath();
+            ctx.arc(52, 107, 4, 0, Math.PI * 2);
+            ctx.arc(148, 107, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Mouth
+            ctx.save();
+            ctx.beginPath();
+            ctx.ellipse(100, 115, 65, 45, 0, 0, Math.PI * 2);
+            ctx.clip();
+
+            ctx.fillStyle = '#dc2626';
+            ctx.strokeStyle = '#050505';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.rect(46, 114, 108, 32);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.rect(46, 114, 108, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#dc2626';
+            ctx.beginPath();
+            ctx.moveTo(128, 126);
+            ctx.lineTo(136, 118);
+            ctx.lineTo(142, 126);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+
+            // Body
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#050505';
+            ctx.lineWidth = 4.5;
+            ctx.beginPath();
+            ctx.moveTo(76, 158);
+            ctx.quadraticCurveTo(64, 178, 70, 184);
+            ctx.lineTo(80, 200);
+            ctx.quadraticCurveTo(90, 206, 95, 200);
+            ctx.lineTo(100, 186);
+            ctx.lineTo(105, 200);
+            ctx.quadraticCurveTo(110, 206, 120, 200);
+            ctx.lineTo(130, 184);
+            ctx.quadraticCurveTo(136, 178, 124, 158);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Tie
+            ctx.fillStyle = '#1d4ed8';
+            ctx.beginPath();
+            ctx.moveTo(95, 159);
+            ctx.lineTo(105, 159);
+            ctx.lineTo(107, 182);
+            ctx.lineTo(100, 190);
+            ctx.lineTo(93, 182);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            const img = new Image();
+            img.onload = function() {
+                currentLoadedImage = img;
+                displaySourcePreview(img, 'オリジナルマスコット.png');
+                processImageConversion();
+            };
+            img.src = canvas.toDataURL('image/png');
+        }
+
+        function onSettingsChange() {
+            const gridSize = document.getElementById('gridSizeRange').value;
+            const scaleVal = document.getElementById('outputScaleRange').value;
+            const smoothVal = document.getElementById('smoothLevelRange').value;
+            const smoothLabels = ['Lv.0 (直線)', 'Lv.1 (弱)', 'Lv.2 (なめらか)', 'Lv.3 (超曲線)'];
+
+            document.getElementById('gridValBadge').innerText = `${gridSize} px`;
+            document.getElementById('scaleValBadge').innerText = `${scaleVal}x`;
+            document.getElementById('smoothValBadge').innerText = smoothLabels[smoothVal];
+            document.getElementById('alphaValText').innerText = document.getElementById('alphaThreshold').value;
+
+            if (currentLoadedImage) processImageConversion();
+        }
+
+        function quantizeColor(r, g, b, crisp) {
+            if (!crisp) {
+                const s = 32;
+                return [Math.min(255, Math.round(r/s)*s), Math.min(255, Math.round(g/s)*s), Math.min(255, Math.round(b/s)*s)];
+            }
+            const step = 64;
+            const qr = r > 215 ? 255 : (r < 50 ? 10 : Math.round(r / step) * step);
+            const qg = g > 215 ? 255 : (g < 50 ? 10 : Math.round(g / step) * step);
+            const qb = b > 215 ? 255 : (b < 50 ? 10 : Math.round(b / step) * step);
+            return [Math.min(255, qr), Math.min(255, qg), Math.min(255, qb)];
+        }
+
+        function processImageConversion() {
+            if (!currentLoadedImage) return;
+
+            const img = currentLoadedImage;
+            const gridSize = parseInt(document.getElementById('gridSizeRange').value, 10);
+            const outputScale = parseInt(document.getElementById('outputScaleRange').value, 10);
+            const smoothLevel = parseInt(document.getElementById('smoothLevelRange').value, 10);
+            const alphaThreshold = parseInt(document.getElementById('alphaThreshold').value, 10);
+            const crispQuantize = document.getElementById('crispQuantizeCheck').checked;
+
+            const base64Data = img.src;
+            document.getElementById('base64OutputText').value = base64Data;
+            document.getElementById('base64LivePreviewImg').src = base64Data;
+            const byteSize = Math.round((base64Data.length * 3) / 4);
+            const sizeStr = byteSize > 1024 ? `${(byteSize / 1024).toFixed(1)} KB` : `${byteSize} Bytes`;
+            document.getElementById('base64SizeText').innerText = `${sizeStr} (${base64Data.length.toLocaleString()} 文字)`;
+            document.getElementById('favSnippetText').value = `<link rel="icon" type="image/png" href="${base64Data}">`;
+            document.getElementById('imgSnippetText').value = `<img src="${base64Data}" alt="Embedded Image" />`;
+
+            const workCanvas = document.getElementById('workCanvas');
+            workCanvas.width = gridSize;
+            workCanvas.height = Math.max(1, Math.round(gridSize * (img.height / img.width)));
+            const ctx = workCanvas.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+            ctx.clearRect(0, 0, workCanvas.width, workCanvas.height);
+            ctx.drawImage(img, 0, 0, workCanvas.width, workCanvas.height);
+
+            const imgData = ctx.getImageData(0, 0, workCanvas.width, workCanvas.height);
+            const data = imgData.data;
+            const w = workCanvas.width;
+            const h = workCanvas.height;
+
+            generateTrueSmoothVectorSvg(data, w, h, alphaThreshold, outputScale, crispQuantize, smoothLevel);
+            generateCssArt(data, w, h, alphaThreshold, outputScale, crispQuantize);
+            generateSvgArt(data, w, h, alphaThreshold, outputScale, crispQuantize);
+
+            document.getElementById('statusMessage').innerText = `変換完了 (${w}×${h} / 出力倍率 ${outputScale}x)`;
+        }
+
+        function generateTrueSmoothVectorSvg(data, w, h, alphaThreshold, outputScale, crisp, smoothLevel) {
+            const colorGrid = new Array(w * h).fill(null);
+            const uniqueColors = new Set();
+
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const idx = (y * w + x) * 4;
+                    if (data[idx + 3] >= alphaThreshold) {
+                        const [r, g, b] = quantizeColor(data[idx], data[idx + 1], data[idx + 2], crisp);
+                        const hex = rgbToHex(r, g, b, 255);
+                        colorGrid[y * w + x] = hex;
+                        uniqueColors.add(hex);
+                    }
+                }
+            }
+
+            function chaikinSmooth(points, iterations) {
+                let pts = points;
+                for (let it = 0; it < iterations; it++) {
+                    if (pts.length < 3) break;
+                    const next = [];
+                    for (let i = 0; i < pts.length; i++) {
+                        const p0 = pts[i];
+                        const p1 = pts[(i + 1) % pts.length];
+                        next.push([0.75 * p0[0] + 0.25 * p1[0], 0.75 * p0[1] + 0.25 * p1[1]]);
+                        next.push([0.25 * p0[0] + 0.75 * p1[0], 0.25 * p0[1] + 0.75 * p1[1]]);
+                    }
+                    pts = next;
+                }
+                return pts;
+            }
+
+            let svgPaths = [];
+            let totalPathCount = 0;
+            const sortedColors = Array.from(uniqueColors).sort((a, b) => {
+                return colorGrid.filter(c => c === b).length - colorGrid.filter(c => c === a).length;
+            });
+
+            sortedColors.forEach(color => {
+                const edges = new Map();
+                const addEdge = (x1, y1, x2, y2) => {
+                    const key = `${x1},${y1}`;
+                    if (!edges.has(key)) edges.set(key, []);
+                    edges.get(key).push([x2, y2]);
+                };
+
+                for (let y = 0; y < h; y++) {
+                    for (let x = 0; x < w; x++) {
+                        if (colorGrid[y * w + x] === color) {
+                            if (y === 0 || colorGrid[(y - 1) * w + x] !== color) addEdge(x, y, x + 1, y);
+                            if (x === w - 1 || colorGrid[y * w + (x + 1)] !== color) addEdge(x + 1, y, x + 1, y + 1);
+                            if (y === h - 1 || colorGrid[(y + 1) * w + x] !== color) addEdge(x + 1, y + 1, x, y + 1);
+                            if (x === 0 || colorGrid[y * w + (x - 1)] !== color) addEdge(x, y + 1, x, y);
+                        }
+                    }
+                }
+
+                const loops = [];
+                for (const [startKey, targets] of edges.entries()) {
+                    while (targets.length > 0) {
+                        const loop = [];
+                        let [sx, sy] = startKey.split(',').map(Number);
+                        let [cx, cy] = [sx, sy];
+                        let nextPt = targets.pop();
+                        loop.push([cx, cy]);
+
+                        while (nextPt) {
+                            [cx, cy] = nextPt;
+                            if (cx === sx && cy === sy) break;
+                            loop.push([cx, cy]);
+                            const nextKey = `${cx},${cy}`;
+                            const nextList = edges.get(nextKey);
+                            nextPt = (nextList && nextList.length > 0) ? nextList.pop() : null;
+                        }
+                        if (loop.length >= 3) loops.push(loop);
+                    }
+                }
+
+                if (loops.length > 0) {
+                    const dParts = loops.map(loop => {
+                        const smoothed = chaikinSmooth(loop, smoothLevel);
+                        return 'M ' + smoothed.map(p => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(' L ') + ' Z';
+                    });
+                    svgPaths.push(`<path fill="${color}" fill-rule="evenodd" d="${dParts.join(' ')}"/>`);
+                    totalPathCount++;
+                }
+            });
+
+            const outW = w * outputScale;
+            const outH = h * outputScale;
+            const svgCode = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${outW}" height="${outH}">
+  ${svgPaths.join('\n  ')}
+</svg>`;
+
+            document.getElementById('vectorCodeOutput').value = svgCode;
+            document.getElementById('vectorInfoText').innerText = `出力: ${outW}×${outH}px / ベクター層: ${totalPathCount}色`;
+
+            const previewContainer = document.getElementById('vectorLivePreviewContainer');
+            previewContainer.innerHTML = svgCode;
+            const svgChild = previewContainer.querySelector('svg');
+            if (svgChild) {
+                svgChild.style.width = '100%';
+                svgChild.style.height = '100%';
+                svgChild.style.maxHeight = '180px';
+                svgChild.style.objectFit = 'contain';
+            }
+        }
+
+        function generateCssArt(data, w, h, alphaThreshold, outputScale, crisp) {
+            const pixelSize = outputScale;
+            const shadows = [];
+            let activePixels = 0;
+
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const idx = (y * w + x) * 4;
+                    if (data[idx + 3] >= alphaThreshold) {
+                        activePixels++;
+                        const [r, g, b] = quantizeColor(data[idx], data[idx + 1], data[idx + 2], crisp);
+                        const colorHex = rgbToHex(r, g, b, 255);
+                        shadows.push(`${x * pixelSize}px ${y * pixelSize}px 0 0 ${colorHex}`);
+                    }
+                }
+            }
+
+            const totalW = w * pixelSize;
+            const totalH = h * pixelSize;
+            const cssCode = `/* Crisp CSS Pixel Art (${totalW}x${totalH}px) */
+.css-art-wrapper {
+  width: ${totalW}px;
+  height: ${totalH}px;
+  position: relative;
+}
+.css-art {
+  width: ${pixelSize}px;
+  height: ${pixelSize}px;
+  background: transparent;
+  box-shadow:
+    ${shadows.join(',\n    ')};
+}`;
+
+            document.getElementById('cssCodeOutput').value = cssCode;
+            document.getElementById('cssPixelCountText').innerText = `出力: ${totalW}×${totalH}px (${activePixels} ピクセル)`;
+
+            const previewBoxMax = 175;
+            const fitScale = Math.min(previewBoxMax / totalW, previewBoxMax / totalH, 1.5);
+            
+            const wrapper = document.getElementById('cssArtPreviewWrapper');
+            wrapper.style.width = `${totalW}px`;
+            wrapper.style.height = `${totalH}px`;
+            wrapper.style.position = 'relative';
+            wrapper.style.transform = `scale(${fitScale})`;
+            wrapper.style.transformOrigin = 'center center';
+
+            const liveElem = document.getElementById('cssArtLiveElement');
+            liveElem.style.position = 'absolute';
+            liveElem.style.top = '0';
+            liveElem.style.left = '0';
+            liveElem.style.width = `${pixelSize}px`;
+            liveElem.style.height = `${pixelSize}px`;
+            liveElem.style.background = 'transparent';
+            liveElem.style.boxShadow = shadows.join(', ');
+        }
+
+        function generateSvgArt(data, w, h, alphaThreshold, outputScale, crisp) {
+            let rects = [];
+            let rectCount = 0;
+
+            for (let y = 0; y < h; y++) {
+                let startX = -1;
+                let currentColor = null;
+                let currentLen = 0;
+
+                for (let x = 0; x < w; x++) {
+                    const idx = (y * w + x) * 4;
+                    let colorHex = null;
+                    if (data[idx + 3] >= alphaThreshold) {
+                        const [r, g, b] = quantizeColor(data[idx], data[idx + 1], data[idx + 2], crisp);
+                        colorHex = rgbToHex(r, g, b, 255);
+                    }
+
+                    if (colorHex === currentColor && colorHex !== null) {
+                        currentLen++;
+                    } else {
+                        if (currentColor !== null) {
+                            rects.push(`<rect x="${startX}" y="${y}" width="${currentLen}" height="1" fill="${currentColor}"/>`);
+                            rectCount++;
+                        }
+                        startX = x;
+                        currentColor = colorHex;
+                        currentLen = 1;
+                    }
+                }
+                if (currentColor !== null) {
+                    rects.push(`<rect x="${startX}" y="${y}" width="${currentLen}" height="1" fill="${currentColor}"/>`);
+                    rectCount++;
+                }
+            }
+
+            const outW = w * outputScale;
+            const outH = h * outputScale;
+            const svgCode = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges" width="${outW}" height="${outH}">
+  ${rects.join('\n  ')}
+</svg>`;
+
+            document.getElementById('svgCodeOutput').value = svgCode;
+            document.getElementById('svgRectCountText').innerText = `出力: ${outW}×${outH}px / <rect>数: ${rectCount} 個`;
+
+            const previewContainer = document.getElementById('svgLivePreviewContainer');
+            previewContainer.innerHTML = svgCode;
+            const svgChild = previewContainer.querySelector('svg');
+            if (svgChild) {
+                svgChild.style.width = '100%';
+                svgChild.style.height = '100%';
+                svgChild.style.maxHeight = '180px';
+                svgChild.style.objectFit = 'contain';
+            }
+        }
+
+        function rgbToHex(r, g, b, a) {
+            if (a < 255) return `rgba(${r},${g},${b},${(a / 255).toFixed(2)})`;
+            return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
+        }
+
+        function switchTab(tabName) {
+            activeTab = tabName;
+            ['vector', 'css', 'svg', 'base64'].forEach(t => {
+                const btn = document.getElementById(`tabBtn${capitalize(t)}`);
+                const content = document.getElementById(`tabContent${capitalize(t)}`);
+                if (t === tabName) {
+                    btn.classList.add('bg-slate-900', 'text-white', 'border-slate-800');
+                    btn.classList.remove('text-slate-400', 'hover:text-slate-200');
+                    content.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('bg-slate-900', 'text-white', 'border-slate-800');
+                    btn.classList.add('text-slate-400', 'hover:text-slate-200');
+                    content.classList.add('hidden');
+                }
+            });
+        }
+
+        function capitalize(s) {
+            return s.charAt(0).toUpperCase() + s.slice(1);
+        }
+
+        // コピー関数の修正：指定されたIDの要素（textarea or input）の「value」を確実に取得してクリップボードへ！
+        function copyCode(elementId, labelName = 'コード') {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            const textToCopy = el.value !== undefined ? el.value : el.innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            showToast(`${labelName} をコピーしました！`);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2200);
+        }
+    </script>
+</body>
+</html>
